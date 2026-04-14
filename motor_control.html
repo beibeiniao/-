@@ -1,0 +1,1271 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电机控制系统 - BLDC FOC Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            border-left: 4px solid #667eea;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        input[type="range"],
+        select {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input[type="number"]:focus,
+        input[type="text"]:focus,
+        input[type="range"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        input[type="range"] {
+            padding: 0;
+            height: 6px;
+            cursor: pointer;
+        }
+
+        .input-unit {
+            padding: 12px 15px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            color: #666;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(245, 101, 101, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.3);
+        }
+
+        .status-display {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .status-item {
+            text-align: center;
+        }
+
+        .status-label {
+            color: #999;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-value.warning {
+            color: #f6ad55;
+        }
+
+        .status-value.danger {
+            color: #f56565;
+        }
+
+        .status-value.success {
+            color: #48bb78;
+        }
+
+        .indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .indicator.active {
+            background: #48bb78;
+            box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.3);
+        }
+
+        .indicator.inactive {
+            background: #cbd5e0;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        .command-log {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .log-entry.send {
+            color: #667eea;
+        }
+
+        .log-entry.receive {
+            color: #48bb78;
+        }
+
+        .log-entry.error {
+            color: #f56565;
+        }
+
+        .timestamp {
+            color: #999;
+            margin-right: 10px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .alert.warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        .alert.success {
+            background: #dcfce7;
+            color: #166534;
+            border-left: 4px solid #22c55e;
+        }
+
+        .slider-value {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .parameter-editor {
+            background: white;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .parameter-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .parameter-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .parameter-item label {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .parameter-item input {
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+
+            .status-display {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .parameter-row {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ BLDC 电机控制系统</h1>
+            <p>Field Oriented Control (FOC) - STM32G431 Motor Driver</p>
+            <!-- 连接状态面板 -->
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.3); text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: center;">
+                    <div>
+                        <label style="font-size: 12px; opacity: 0.9;">波特率 (baud)</label>
+                        <select id="baudRate" style="padding: 8px; border-radius: 4px; border: none; font-size: 12px; width: 100%;">
+                            <option value="9600">9600</option>
+                            <option value="115200">115200</option>
+                            <option value="230400">230400</option>
+                            <option value="921600" selected>921600</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 12px; opacity: 0.9;">
+                            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #999; margin-right: 5px;" id="connectionStatus"></span>
+                            状态: <span id="statusText">未连接</span>
+                        </label>
+                    </div>
+                    <div>
+                        <button id="connectBtn" onclick="serialController.connect()" style="padding: 8px 16px; background: #48bb78; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%;">连接</button>
+                        <button id="disconnectBtn" onclick="serialController.disconnect()" style="padding: 8px 16px; background: #f56565; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; width: 100%; display: none;">断开</button>
+                    </div>
+                    <div>
+                        <button onclick="serialController.sendInitCommand()" id="initBtn" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold;" disabled>初始化</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- 电机状态监测 -->
+            <div class="section full-width">
+                <h2>实时状态监测</h2>
+                <div class="status-display">
+                    <div class="status-item">
+                        <div class="status-label">电机状态</div>
+                        <div class="status-value">
+                            <span class="indicator active" id="motorStatusIndicator"></span>
+                            <span id="motorStatus">离线</span>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">当前转速</div>
+                        <div class="status-value" id="currentSpeed">0 rad/s</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">当前位置</div>
+                        <div class="status-value" id="currentPosition">0.00 rad</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">电流（q轴）</div>
+                        <div class="status-value" id="currentIq">0.00 A</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">温度</div>
+                        <div class="status-value" id="temperature">-- °C</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">母线电压</div>
+                        <div class="status-value" id="busVoltage">-- V</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 基本控制 -->
+            <div class="section">
+                <h2>基本控制</h2>
+
+                <div class="control-group">
+                    <label>电机使能状态</label>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="motorEnable">
+                            <span class="slider"></span>
+                        </label>
+                        <span id="enableStatus" style="color: #999;">已禁用</span>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="enableMotor()">✓ 使能电机</button>
+                    <button class="btn-danger" onclick="disableMotor()">✕ 禁用电机</button>
+                </div>
+
+                <div class="control-group" style="margin-top: 20px;">
+                    <label>工作模式</label>
+                    <select id="workMode" onchange="changeWorkMode()">
+                        <option value="0">速度控制模式</option>
+                        <option value="1">位置控制模式</option>
+                        <option value="2">扭矩控制模式</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>转向</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button class="btn-secondary" onclick="setDirection(0)">↻ 正转</button>
+                        <button class="btn-secondary" onclick="setDirection(1)">↺ 反转</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 转速控制 -->
+            <div class="section">
+                <h2>转速控制</h2>
+
+                <div class="control-group">
+                    <label>目标转速 (rad/s)</label>
+                    <div class="input-group">
+                        <input type="number" id="speedTarget" value="0" min="-100" max="100" step="0.1"
+                            placeholder="输入转速值">
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <span class="slider-value" id="speedValue">0 rad/s</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>转速调节 (滑块)</label>
+                    <input type="range" id="speedSlider" value="0" min="-100" max="100" step="0.1"
+                        oninput="updateSpeedSlider(this.value)">
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-success" onclick="setSpeed()">设置转速</button>
+                    <button class="btn-secondary" onclick="stopMotor()">⏹ 停止</button>
+                </div>
+            </div>
+
+            <!-- 位置控制 -->
+            <div class="section">
+                <h2>位置控制</h2>
+
+                <div class="control-group">
+                    <label>目标位置 (rad)</label>
+                    <div class="input-group">
+                        <input type="number" id="positionTarget" value="0" min="-314" max="314" step="0.01"
+                            placeholder="输入位置值">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>最大速度限制 (rad/s)</label>
+                    <div class="input-group">
+                        <input type="number" id="maxSpeedLimit" value="10" min="0.1" max="100" step="0.1">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-success" onclick="setPosition()">移动至位置</button>
+                    <button class="btn-secondary" onclick="resetPosition()">↻ 复位</button>
+                </div>
+            </div>
+
+            <!-- 扭矩控制 -->
+            <div class="section">
+                <h2>扭矩控制</h2>
+
+                <div class="control-group">
+                    <label>目标电流(q轴) (A)</label>
+                    <div class="input-group">
+                        <input type="number" id="torqueTarget" value="0" min="-20" max="20" step="0.1"
+                            placeholder="输入电流值">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>d轴电流目标 (A)</label>
+                    <div class="input-group">
+                        <input type="number" id="dAxisCurrent" value="0" min="-20" max="20" step="0.1">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-success" onclick="setTorque()">设置扭矩</button>
+                    <button class="btn-secondary" onclick="clearTorque()">清除</button>
+                </div>
+            </div>
+
+            <!-- PID 参数调整 -->
+            <div class="section">
+                <h2>PID 参数</h2>
+
+                <div class="parameter-editor">
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #667eea;">位置环 PID</strong>
+                    </div>
+                    <div class="parameter-row">
+                        <div class="parameter-item">
+                            <label>Kp</label>
+                            <input type="number" id="pidPos_Kp" value="5" step="0.1">
+                        </div>
+                        <div class="parameter-item">
+                            <label>Ki</label>
+                            <input type="number" id="pidPos_Ki" value="1" step="0.1">
+                        </div>
+                    </div>
+                    <div class="parameter-row">
+                        <div class="parameter-item">
+                            <label>Kd</label>
+                            <input type="number" id="pidPos_Kd" value="0" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="parameter-editor">
+                    <div style="margin-bottom: 15px;">
+                        <strong style="color: #667eea;">速度环 PID</strong>
+                    </div>
+                    <div class="parameter-row">
+                        <div class="parameter-item">
+                            <label>Kp</label>
+                            <input type="number" id="pidSpeed_Kp" value="2" step="0.1">
+                        </div>
+                        <div class="parameter-item">
+                            <label>Ki</label>
+                            <input type="number" id="pidSpeed_Ki" value="0.5" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="setPIDParams()" style="width: 100%;">更新 PID 参数</button>
+            </div>
+
+            <!-- 限制参数 -->
+            <div class="section">
+                <h2>限制与安全</h2>
+
+                <div class="parameter-editor">
+                    <div style="margin-bottom: 10px;">
+                        <strong style="color: #667eea;">电流限制</strong>
+                    </div>
+                    <div class="parameter-row">
+                        <div class="parameter-item">
+                            <label>最大电流</label>
+                            <input type="number" id="maxCurrent" value="20" min="1" max="50" step="0.1">
+                        </div>
+                        <div class="parameter-item">
+                            <label>最小电流</label>
+                            <input type="number" id="minCurrent" value="-20" min="-50" max="0" step="0.1">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; margin-bottom: 10px;">
+                        <strong style="color: #667eea;">速度限制</strong>
+                    </div>
+                    <div class="parameter-row">
+                        <div class="parameter-item">
+                            <label>最高速度</label>
+                            <input type="number" id="maxSpeed" value="50" min="1" max="200" step="1">
+                        </div>
+                        <div class="parameter-item">
+                            <label>最低速度</label>
+                            <input type="number" id="minSpeed" value="-50" min="-200" max="-1" step="1">
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 15px; margin-bottom: 10px;">
+                        <strong style="color: #667eea;">位置限制</strong>
+                    </div>
+                    <div class="parameter-row">
+                        <div class="parameter-item">
+                            <label>最大位置</label>
+                            <input type="number" id="maxPosition" value="314" step="1">
+                        </div>
+                        <div class="parameter-item">
+                            <label>最小位置</label>
+                            <input type="number" id="minPosition" value="-314" step="1">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="setLimits()" style="width: 100%;">应用限制</button>
+            </div>
+
+            <!-- 命令日志 -->
+            <div class="section full-width">
+                <h2>命令日志</h2>
+                <div class="command-log" id="commandLog">
+                    <div class="log-entry" style="color: #999;">
+                        <span class="timestamp">[系统]</span>
+                        <span>电机控制系统已启动，等待连接...</span>
+                    </div>
+                </div>
+                <button class="btn-secondary" onclick="clearLog()" style="margin-top: 10px; width: 100%;">清空日志</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============== 串口控制器类 ==============
+        class SerialController {
+            constructor() {
+                this.port = null;
+                this.reader = null;
+                this.writer = null;
+                this.isConnected = false;
+                this.receiveBuffer = '';
+                this.commandQueue = [];
+                this.lastCommandTime = 0;
+                this.commandInterval = 100; // 最少间隔100ms
+            }
+
+            async connect() {
+                try {
+                    // 首先检查浏览器是否支持 Web Serial API
+                    if (!navigator.serial) {
+                        const msg = '❌ 浏览器不支持 Web Serial API！\n请使用 Chrome、Edge 或 Opera 浏览器 (v89+)';
+                        addLog(msg, 'error');
+                        return;
+                    }
+
+                    addLog('⏳ 正在请求选择串口设备...', 'info');
+                    addLog('💡 如果没有弹出设备选择框，请检查设备是否已连接', 'info');
+                    
+                    // 请求用户选择串口（不指定过滤条件，显示所有可用串口）
+                    this.port = await navigator.serial.requestPort();
+
+                    const baudRate = parseInt(document.getElementById('baudRate').value);
+                    
+                    addLog(`📝 正在以 ${baudRate} bps 打开串口...`, 'info');
+                    
+                    // 打开串口
+                    await this.port.open({ 
+                        baudRate: baudRate,
+                        dataBits: 8,
+                        stopBits: 1,
+                        parity: 'none',
+                        flowControl: 'none'
+                    });
+
+                    this.isConnected = true;
+                    this.updateConnectionStatus();
+                    addLog(`✅ 串口连接成功 (波特率: ${baudRate} bps)`, 'success');
+                    addLog(`🚀 等待 STM32 响应... 请点击 [初始化] 按钮`, 'info');
+                    
+                    // 启动接收线程
+                    this.startReading();
+                    
+                    // 更新UI
+                    document.getElementById('connectBtn').style.display = 'none';
+                    document.getElementById('disconnectBtn').style.display = 'block';
+                    document.getElementById('initBtn').disabled = false;
+                    document.getElementById('baudRate').disabled = true;
+
+                } catch (err) {
+                    // 详细的错误诊断
+                    let errorMsg = `❌ 连接失败: ${err.message}\n\n`;
+                    
+                    if (err.name === 'NotFoundError') {
+                        errorMsg += '原因: 未找到串口设备\n';
+                        errorMsg += '解决方案:\n';
+                        errorMsg += '1. 确认 STM32 已通过 USB 连接到电脑\n';
+                        errorMsg += '2. 检查 USB 数据线是否完好\n';
+                        errorMsg += '3. 在设备管理器/系统报告中检查设备是否识别\n';
+                        errorMsg += '4. 如需要，安装对应的 USB 驱动 (ST-Link/CH340/CP210x)';
+                    } else if (err.name === 'NotSupportedError') {
+                        errorMsg += '原因: 不支持的操作系统或浏览器\n';
+                        errorMsg += '解决方案:\n';
+                        errorMsg += '1. 使用 Chrome、Edge 或 Opera 浏览器\n';
+                        errorMsg += '2. 确保浏览器版本 ≥ v89\n';
+                        errorMsg += '3. 在 macOS 上，可能需要赋予权限';
+                    } else if (err.name === 'SecurityError') {
+                        errorMsg += '原因: 权限被拒绝\n';
+                        errorMsg += '解决方案:\n';
+                        errorMsg += '1. 检查浏览器是否获得了权限\n';
+                        errorMsg += '2. 在 macOS 上，检查"安全性与隐私"设置\n';
+                        errorMsg += '3. 尝试在隐私浏览模式下打开此页面';
+                    } else if (err.name === 'NetworkError') {
+                        errorMsg += '原因: 串口设备已断开连接或被占用\n';
+                        errorMsg += '解决方案:\n';
+                        errorMsg += '1. 重新插拔 USB 线\n';
+                        errorMsg += '2. 关闭其他串口工具 (如 PuTTY、终端等)\n';
+                        errorMsg += '3. 等待 2 秒后重试连接';
+                    }
+
+                    addLog(errorMsg, 'error');
+                    this.isConnected = false;
+                    this.updateConnectionStatus();
+                }
+            }
+
+            async disconnect() {
+                try {
+                    if (this.reader) {
+                        this.reader.cancel();
+                    }
+                    if (this.port) {
+                        await this.port.close();
+                    }
+                    this.isConnected = false;
+                    this.port = null;
+                    this.reader = null;
+                    this.writer = null;
+                    this.updateConnectionStatus();
+                    addLog('🔌 串口已断开连接', 'info');
+                    
+                    // 更新UI
+                    document.getElementById('connectBtn').style.display = 'block';
+                    document.getElementById('disconnectBtn').style.display = 'none';
+                    document.getElementById('initBtn').disabled = true;
+                    document.getElementById('baudRate').disabled = false;
+                } catch (err) {
+                    addLog(`❌ 断开连接失败: ${err.message}`, 'error');
+                }
+            }
+
+            async startReading() {
+                try {
+                    this.reader = this.port.readable.getReader();
+                    while (true) {
+                        const { value, done } = await this.reader.read();
+                        if (done) break;
+
+                        // 将接收到的数据添加到缓冲区
+                        const text = new TextDecoder().decode(value);
+                        this.receiveBuffer += text;
+
+                        // 处理完整的行
+                        const lines = this.receiveBuffer.split('\r\n');
+                        this.receiveBuffer = lines.pop(); // 保留未完成的行
+
+                        for (let line of lines) {
+                            if (line.trim()) {
+                                this.handleResponse(line.trim());
+                            }
+                        }
+                    }
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        addLog(`❌ 读取错误: ${err.message}`, 'error');
+                        this.isConnected = false;
+                        this.updateConnectionStatus();
+                    }
+                }
+            }
+
+            async sendCommand(command) {
+                // 检查连接状态
+                if (!this.isConnected) {
+                    addLog(`⚠️ 未连接! 请先点击[连接]按钮`, 'error');
+                    return false;
+                }
+
+                try {
+                    const writer = this.port.writable.getWriter();
+                    const fullCommand = `CMD:${command}\r\n`;
+                    const data = new TextEncoder().encode(fullCommand);
+                    
+                    await writer.write(data);
+                    writer.releaseLock();
+                    
+                    addLog(`📤 发送: CMD:${command}`, 'send');
+                    return true;
+                } catch (err) {
+                    addLog(`❌ 发送失败: ${err.message}`, 'error');
+                    this.isConnected = false;
+                    this.updateConnectionStatus();
+                    return false;
+                }
+            }
+
+            handleResponse(response) {
+                // 解析不同类型的响应
+                if (response.startsWith('INIT:')) {
+                    this.handleInit(response);
+                } else if (response.startsWith('ACK:')) {
+                    this.handleAck(response);
+                } else if (response.startsWith('FEEDBACK:')) {
+                    this.handleFeedback(response);
+                } else if (response.startsWith('DATA:')) {
+                    this.handleData(response);
+                } else if (response.startsWith('ERROR:')) {
+                    this.handleError(response);
+                } else {
+                    addLog(`📨 收到: ${response}`, 'receive');
+                }
+            }
+
+            handleInit(response) {
+                // INIT:ack:stm32g431:v1.0.0
+                addLog(`✅ STM32已连接: ${response}`, 'receive');
+                motorState.connected = true;
+            }
+
+            handleAck(response) {
+                // ACK:SPEED:OK 或 ACK:SPEED:ERROR
+                const parts = response.split(':');
+                const cmd = parts[1];
+                const status = parts[2];
+                
+                if (status === 'OK') {
+                    addLog(`✅ 确认: ${cmd}执行成功`, 'receive');
+                } else {
+                    addLog(`⚠️ 确认: ${cmd}执行失败 - ${parts.slice(3).join(':')}`, 'error');
+                }
+            }
+
+            handleFeedback(response) {
+                // FEEDBACK:RUN:50.25:3.14:10.50:0.00:35.5:24.0
+                const parts = response.split(':');
+                if (parts.length >= 8) {
+                    const state = parts[1];
+                    motorState.speed = parseFloat(parts[2]);
+                    motorState.position = parseFloat(parts[3]);
+                    motorState.currentIq = parseFloat(parts[4]);
+                    motorState.currentId = parseFloat(parts[5]);
+                    motorState.temperature = parseFloat(parts[6]);
+                    motorState.busVoltage = parseFloat(parts[7]);
+                    motorState.enabled = (state === 'RUN');
+                    updateUI();
+                    // 不打印反馈以避免日志泛滥，除非设置debug模式
+                }
+            }
+
+            handleData(response) {
+                // DATA:POS:3.14159 或其他数据
+                addLog(`📊 数据: ${response}`, 'receive');
+            }
+
+            handleError(response) {
+                // ERROR:OVERCURRENT 或其他错误
+                addLog(`🚨 错误: ${response}`, 'error');
+            }
+
+            sendInitCommand() {
+                this.sendCommand('INIT');
+            }
+
+            updateConnectionStatus() {
+                const statusEl = document.getElementById('connectionStatus');
+                const statusText = document.getElementById('statusText');
+                
+                if (this.isConnected) {
+                    statusEl.style.background = '#48bb78';
+                    statusEl.style.boxShadow = '0 0 0 3px rgba(72, 187, 120, 0.3)';
+                    statusText.textContent = '已连接';
+                } else {
+                    statusEl.style.background = '#cbd5e0';
+                    statusEl.style.boxShadow = 'none';
+                    statusText.textContent = '未连接';
+                }
+            }
+        }
+
+        // ============== 电机状态和UI管理 ==============
+        const motorState = {
+            enabled: false,
+            speed: 0,
+            position: 0,
+            currentIq: 0,
+            currentId: 0,
+            temperature: 25,
+            busVoltage: 24,
+            mode: 0,
+            direction: 0,
+            connected: false
+        };
+
+        // 创建全局串口控制器实例
+        const serialController = new SerialController();
+
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('commandLog');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+
+            const now = new Date();
+            const timestamp = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}]`;
+
+            entry.innerHTML = `<span class="timestamp">${timestamp}</span><span>${message}</span>`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('commandLog').innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        // 电机使能
+        async function enableMotor() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            await serialController.sendCommand('ENABLE');
+        }
+
+        // 电机禁用
+        async function disableMotor() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            await serialController.sendCommand('DISABLE');
+        }
+
+        // 设置转速
+        async function setSpeed() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const speed = parseFloat(document.getElementById('speedTarget').value);
+            if (isNaN(speed) || speed < -100 || speed > 100) {
+                addLog('⚠️ 转速范围: -100 ~ 100 rad/s', 'error');
+                return;
+            }
+            await serialController.sendCommand(`SPEED:${speed}`);
+        }
+
+        function updateSpeedSlider(value) {
+            document.getElementById('speedTarget').value = value;
+            document.getElementById('speedValue').textContent = `${parseFloat(value).toFixed(1)} rad/s`;
+        }
+
+        // 停止电机
+        async function stopMotor() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            document.getElementById('speedTarget').value = 0;
+            document.getElementById('speedSlider').value = 0;
+            document.getElementById('speedValue').textContent = '0 rad/s';
+            await serialController.sendCommand('STOP');
+        }
+
+        // 设置位置
+        async function setPosition() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const position = parseFloat(document.getElementById('positionTarget').value);
+            const maxSpeed = parseFloat(document.getElementById('maxSpeedLimit').value);
+            
+            if (isNaN(position) || position < -314 || position > 314) {
+                addLog('⚠️ 位置范围: -314 ~ 314 rad', 'error');
+                return;
+            }
+            if (isNaN(maxSpeed) || maxSpeed < 0.1 || maxSpeed > 100) {
+                addLog('⚠️ 最大速度范围: 0.1 ~ 100 rad/s', 'error');
+                return;
+            }
+            
+            await serialController.sendCommand(`POS:${position}:${maxSpeed}`);
+        }
+
+        // 位置复位
+        async function resetPosition() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            document.getElementById('positionTarget').value = 0;
+            await serialController.sendCommand('RESET_POS');
+        }
+
+        // 设置扭矩
+        async function setTorque() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const iq = parseFloat(document.getElementById('torqueTarget').value);
+            const id = parseFloat(document.getElementById('dAxisCurrent').value);
+            
+            if (isNaN(iq) || iq < -20 || iq > 20) {
+                addLog('⚠️ Iq范围: -20 ~ 20 A', 'error');
+                return;
+            }
+            if (isNaN(id) || id < -20 || id > 20) {
+                addLog('⚠️ Id范围: -20 ~ 20 A', 'error');
+                return;
+            }
+            
+            await serialController.sendCommand(`TORQUE:${iq}:${id}`);
+        }
+
+        // 清除扭矩
+        async function clearTorque() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            document.getElementById('torqueTarget').value = 0;
+            document.getElementById('dAxisCurrent').value = 0;
+            await serialController.sendCommand('CLEAR_TORQUE');
+        }
+
+        // 改变工作模式
+        async function changeWorkMode() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const mode = document.getElementById('workMode').value;
+            const modeNames = ['速度控制', '位置控制', '扭矩控制'];
+            await serialController.sendCommand(`MODE:${mode}`);
+        }
+
+        // 设置转向
+        async function setDirection(dir) {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const dirName = dir === 0 ? '正转' : '反转';
+            await serialController.sendCommand(`DIR:${dir}`);
+        }
+
+        // PID参数
+        async function setPIDParams() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const posKp = parseFloat(document.getElementById('pidPos_Kp').value);
+            const posKi = parseFloat(document.getElementById('pidPos_Ki').value);
+            const posKd = parseFloat(document.getElementById('pidPos_Kd').value);
+            const speedKp = parseFloat(document.getElementById('pidSpeed_Kp').value);
+            const speedKi = parseFloat(document.getElementById('pidSpeed_Ki').value);
+            
+            await serialController.sendCommand(`PID_POS:${posKp}:${posKi}:${posKd}`);
+            await new Promise(r => setTimeout(r, 150));
+            await serialController.sendCommand(`PID_SPEED:${speedKp}:${speedKi}`);
+        }
+
+        // 设置限制
+        async function setLimits() {
+            if (!serialController.isConnected) {
+                addLog('⚠️ 请先连接串口!', 'error');
+                return;
+            }
+            const maxCurrent = parseFloat(document.getElementById('maxCurrent').value);
+            const minCurrent = parseFloat(document.getElementById('minCurrent').value);
+            const maxSpeed = parseFloat(document.getElementById('maxSpeed').value);
+            const minSpeed = parseFloat(document.getElementById('minSpeed').value);
+            const maxPosition = parseFloat(document.getElementById('maxPosition').value);
+            const minPosition = parseFloat(document.getElementById('minPosition').value);
+            
+            await serialController.sendCommand(`LIMIT_ALL:${maxCurrent}:${minCurrent}:${maxSpeed}:${minSpeed}:${maxPosition}:${minPosition}`);
+        }
+
+        // 更新UI显示
+        function updateUI() {
+            document.getElementById('currentSpeed').textContent = 
+                motorState.speed.toFixed(2) + ' rad/s';
+            document.getElementById('currentPosition').textContent = 
+                motorState.position.toFixed(2) + ' rad';
+            document.getElementById('currentIq').textContent = 
+                motorState.currentIq.toFixed(2) + ' A';
+            document.getElementById('temperature').textContent = 
+                motorState.temperature.toFixed(1) + ' °C';
+            document.getElementById('busVoltage').textContent = 
+                motorState.busVoltage.toFixed(1) + ' V';
+
+            // 更新指示灯
+            const indicator = document.getElementById('motorStatusIndicator');
+            if (motorState.enabled) {
+                indicator.classList.remove('inactive');
+                indicator.classList.add('active');
+                document.getElementById('motorStatus').textContent = '正常运行';
+            } else {
+                indicator.classList.remove('active');
+                indicator.classList.add('inactive');
+                document.getElementById('motorStatus').textContent = '停止';
+            }
+
+            // 更新使能开关
+            const enableCheckbox = document.getElementById('motorEnable');
+            if (enableCheckbox.checked !== motorState.enabled) {
+                enableCheckbox.checked = motorState.enabled;
+            }
+        }
+
+        // 启用按钮切换时的处理
+        document.getElementById('motorEnable').addEventListener('change', function() {
+            if (this.checked) {
+                enableMotor();
+            } else {
+                disableMotor();
+            }
+        });
+
+        // 定期更新UI
+        setInterval(updateUI, 500);
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查浏览器是否支持Web Serial API
+            if (!navigator.serial) {
+                addLog('❌ 您的浏览器不支持Web Serial API! 请使用Chrome/Edge/Opera等现代浏览器', 'error');
+            } else {
+                addLog('✅ 系统初始化完成，请点击[连接]连接STM32', 'success');
+            }
+            updateUI();
+        });
+
+        // 键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                stopMotor();
+            }
+        });
+
+        // 页面关闭时断开连接
+        window.addEventListener('beforeunload', function() {
+            if (serialController.isConnected) {
+                serialController.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>
